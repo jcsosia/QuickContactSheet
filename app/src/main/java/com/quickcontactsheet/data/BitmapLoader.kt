@@ -74,24 +74,6 @@ fun Context.loadContactPhoto(
         }.getOrNull()?.let { return it }
     }
 
-    // 4. Try standard thumbnail via openContactPhotoInputStream (non-highres)
-    if (!lookupUriString.isNullOrBlank()) {
-        runCatching {
-            val lookupUri = Uri.parse(lookupUriString)
-            ContactsContract.Contacts.openContactPhotoInputStream(contentResolver, lookupUri, false)?.use { stream ->
-                decodeSampledBitmapFromBytes(stream.readBytes(), maxDimensionPx)
-            }
-        }.getOrNull()?.let { return it }
-    }
-
-    if (contactId != null && contactId > 0) {
-        val contactUri = ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId)
-        runCatching {
-            ContactsContract.Contacts.openContactPhotoInputStream(contentResolver, contactUri, false)?.use { stream ->
-                decodeSampledBitmapFromBytes(stream.readBytes(), maxDimensionPx)
-            }
-        }.getOrNull()?.let { return it }
-    }
 
     // 5. Query ContactsContract.Data directly for PHOTO blob (data15)
     if (contactId != null && contactId > 0) {

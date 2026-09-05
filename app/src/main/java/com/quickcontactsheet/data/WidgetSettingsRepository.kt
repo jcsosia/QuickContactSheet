@@ -6,9 +6,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import android.provider.ContactsContract
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -62,7 +64,7 @@ class WidgetSettingsRepository private constructor(
     suspend fun saveSelectedContact(
         widgetId: Int,
         contact: ContactSummary,
-    ) {
+    ) = withContext(Dispatchers.IO) {
         val current = getWidgetSettings(widgetId)
         val lookupUri = buildLookupUri(contact)
         val photoBitmap = context.loadContactPhoto(
@@ -90,10 +92,11 @@ class WidgetSettingsRepository private constructor(
         saveWidgetSettings(updated)
     }
 
+
     suspend fun saveMessages(
         widgetId: Int,
         messages: List<WidgetMessage>,
-    ) {
+    ) = withContext(Dispatchers.IO) {
         val current = getWidgetSettings(widgetId) ?: WidgetSettings(widgetId = widgetId)
         saveWidgetSettings(
             current.copy(
@@ -101,6 +104,7 @@ class WidgetSettingsRepository private constructor(
             ),
         )
     }
+
 
     suspend fun saveWidgetSettings(settings: WidgetSettings) {
         context.widgetDataStore.edit { preferences ->

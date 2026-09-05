@@ -76,7 +76,10 @@ import com.quickcontactsheet.ui.components.ContactAvatar
 import com.quickcontactsheet.ui.components.MessageEditorSheet
 import com.quickcontactsheet.ui.theme.QuickContactSheetTheme
 import com.quickcontactsheet.widget.refreshQuickContactSheetWidgets
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class WidgetConfigurationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -194,7 +197,12 @@ private fun ConfigurationRoute(
                     Button(
                         onClick = {
                             if (currentSettings?.isConfigured == true) {
-                                onComplete()
+                                scope.launch {
+                                    withContext(NonCancellable + Dispatchers.IO) {
+                                        context.refreshQuickContactSheetWidgets()
+                                    }
+                                    onComplete()
+                                }
                             } else {
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
@@ -275,8 +283,10 @@ private fun ConfigurationRoute(
                                 isSelected = currentSettings?.contactId == contact.contactId,
                                 onClick = {
                                     scope.launch {
-                                        repository.saveSelectedContact(widgetId, contact)
-                                        context.refreshQuickContactSheetWidgets()
+                                        withContext(NonCancellable + Dispatchers.IO) {
+                                            repository.saveSelectedContact(widgetId, contact)
+                                            context.refreshQuickContactSheetWidgets()
+                                        }
                                         if (shouldOpenEditor) {
                                             editorVisible = true
                                             shouldOpenEditor = false
@@ -297,8 +307,10 @@ private fun ConfigurationRoute(
             onDismiss = { editorVisible = false },
             onSave = { messages ->
                 scope.launch {
-                    repository.saveMessages(widgetId, messages)
-                    context.refreshQuickContactSheetWidgets()
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        repository.saveMessages(widgetId, messages)
+                        context.refreshQuickContactSheetWidgets()
+                    }
                     snackbarHostState.showSnackbar(context.getString(R.string.messages_saved))
                     editorVisible = false
                 }
