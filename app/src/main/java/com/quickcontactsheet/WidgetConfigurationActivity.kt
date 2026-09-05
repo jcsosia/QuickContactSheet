@@ -75,6 +75,7 @@ import com.quickcontactsheet.data.WidgetSettingsRepository
 import com.quickcontactsheet.ui.components.ContactAvatar
 import com.quickcontactsheet.ui.components.MessageEditorSheet
 import com.quickcontactsheet.ui.theme.QuickContactSheetTheme
+import com.quickcontactsheet.widget.refreshQuickContactSheetWidget
 import com.quickcontactsheet.widget.refreshQuickContactSheetWidgets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -141,6 +142,7 @@ private fun ConfigurationRoute(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var editorVisible by rememberSaveable { mutableStateOf(false) }
     var shouldOpenEditor by rememberSaveable { mutableStateOf(openMessageEditor) }
+    var pendingSelectedContact by remember { mutableStateOf<ContactSummary?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -196,10 +198,15 @@ private fun ConfigurationRoute(
                 actions = {
                     Button(
                         onClick = {
-                            if (currentSettings?.isConfigured == true) {
+                            val contactToSave = pendingSelectedContact
+                            val isConfigured = currentSettings?.isConfigured == true || contactToSave != null
+                            if (isConfigured) {
                                 scope.launch {
                                     withContext(NonCancellable + Dispatchers.IO) {
-                                        context.refreshQuickContactSheetWidgets()
+                                        if (contactToSave != null && currentSettings?.contactId != contactToSave.contactId) {
+                                            repository.saveSelectedContact(widgetId, contactToSave)
+                                        }
+                                        context.refreshQuickContactSheetWidget(widgetId)
                                     }
                                     onComplete()
                                 }
@@ -280,12 +287,12 @@ private fun ConfigurationRoute(
                         items(filteredContacts, key = { it.contactId }) { contact ->
                             ContactRow(
                                 contact = contact,
-                                isSelected = currentSettings?.contactId == contact.contactId,
+                                isSelected = (pendingSelectedContact?.contactId ?: currentSettings?.contactId) == contact.contactId,
                                 onClick = {
+                                    pendingSelectedContact = contact
                                     scope.launch {
                                         withContext(NonCancellable + Dispatchers.IO) {
                                             repository.saveSelectedContact(widgetId, contact)
-                                            context.refreshQuickContactSheetWidgets()
                                         }
                                         if (shouldOpenEditor) {
                                             editorVisible = true
@@ -309,7 +316,7 @@ private fun ConfigurationRoute(
                 scope.launch {
                     withContext(NonCancellable + Dispatchers.IO) {
                         repository.saveMessages(widgetId, messages)
-                        context.refreshQuickContactSheetWidgets()
+                        context.refreshQuickContactSheetWidget(widgetId)
                     }
                     snackbarHostState.showSnackbar(context.getString(R.string.messages_saved))
                     editorVisible = false
