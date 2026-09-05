@@ -162,7 +162,7 @@ private fun PhotoOnlyWidget(
         modifier = GlanceModifier
             .fillMaxSize()
             .clickable(actionRunCallback<OpenQuickActionsAction>()),
-        contentAlignment = Alignment.BottomCenter,
+        contentAlignment = Alignment.Center,
     ) {
         ContactCircle(
             title = title,
