@@ -75,10 +75,15 @@ import com.quickcontactsheet.data.WidgetSettingsRepository
 import com.quickcontactsheet.ui.components.ContactAvatar
 import com.quickcontactsheet.ui.components.MessageEditorSheet
 import com.quickcontactsheet.ui.theme.QuickContactSheetTheme
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import com.quickcontactsheet.widget.QuickContactSheetWidget
+import com.quickcontactsheet.widget.QuickContactSheetWidgetReceiver
 import com.quickcontactsheet.widget.refreshQuickContactSheetWidget
 import com.quickcontactsheet.widget.refreshQuickContactSheetWidgets
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -201,13 +206,25 @@ private fun ConfigurationRoute(
                             val contactToSave = pendingSelectedContact
                             val isConfigured = currentSettings?.isConfigured == true || contactToSave != null
                             if (isConfigured) {
+                                val appContext = context.applicationContext
                                 scope.launch {
                                     withContext(NonCancellable + Dispatchers.IO) {
                                         if (contactToSave != null && currentSettings?.contactId != contactToSave.contactId) {
                                             repository.saveSelectedContact(widgetId, contactToSave)
                                         }
-                                        context.refreshQuickContactSheetWidget(widgetId)
+                                        val glanceManager = GlanceAppWidgetManager(appContext)
+                                        val glanceId = runCatching { glanceManager.getGlanceIdBy(widgetId) }.getOrNull()
+                                        if (glanceId != null) {
+                                            QuickContactSheetWidget().update(appContext, glanceId)
+                                        } else {
+                                            appContext.refreshQuickContactSheetWidgets()
+                                        }
                                     }
+                                    val refreshIntent = Intent(appContext, QuickContactSheetWidgetReceiver::class.java).apply {
+                                        action = "com.quickcontactsheet.action.REFRESH_WIDGET"
+                                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                                    }
+                                    appContext.sendBroadcast(refreshIntent)
                                     onComplete()
                                 }
                             } else {

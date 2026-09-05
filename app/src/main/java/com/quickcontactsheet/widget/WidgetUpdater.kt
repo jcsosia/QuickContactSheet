@@ -11,10 +11,11 @@ suspend fun Context.refreshQuickContactSheetWidgets() {
 
 suspend fun Context.refreshQuickContactSheetWidget(widgetId: Int) {
     if (widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-        runCatching {
-            val glanceManager = GlanceAppWidgetManager(this)
-            val glanceId = glanceManager.getGlanceIdBy(widgetId)
+        val glanceManager = GlanceAppWidgetManager(this)
+        val glanceId = runCatching { glanceManager.getGlanceIdBy(widgetId) }.getOrNull()
+        if (glanceId != null) {
             QuickContactSheetWidget().update(this, glanceId)
+            return
         }
     }
     runCatching {

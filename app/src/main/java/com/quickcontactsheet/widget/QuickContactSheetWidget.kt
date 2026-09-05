@@ -1,6 +1,9 @@
 package com.quickcontactsheet.widget
 
 import android.content.Context
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,28 +55,34 @@ class QuickContactSheetWidget : GlanceAppWidget() {
         id: androidx.glance.GlanceId,
     ) {
         val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
-        val settings = WidgetSettingsRepository.get(context).getWidgetSettings(appWidgetId)
-        val photoProvider = settings?.photoUri
-            ?.let { context.loadBitmapFromFileOrUri(it, maxDimensionPx = 768) }
-            ?.let(::ImageProvider)
+        val repository = WidgetSettingsRepository.get(context)
+        val initialSettings = repository.getWidgetSettings(appWidgetId)
 
         provideContent {
+            val settings by repository.widgetSettingsFlow(appWidgetId).collectAsState(initial = initialSettings)
+            val currentSettings = settings
+            val photoProvider = remember(currentSettings?.photoUri) {
+                currentSettings?.photoUri
+                    ?.let { context.loadBitmapFromFileOrUri(it, maxDimensionPx = 768) }
+                    ?.let(::ImageProvider)
+            }
+
             val sizeBucket = WidgetSizeBucket.from(LocalSize.current)
             when {
-                settings?.isConfigured != true -> {
+                currentSettings?.isConfigured != true -> {
                     EmptyWidgetState()
                 }
 
                 sizeBucket == WidgetSizeBucket.SingleColumn -> {
                     PhotoOnlyWidget(
-                        title = settings.displayName,
+                        title = currentSettings.displayName,
                         photoProvider = photoProvider,
                     )
                 }
 
                 sizeBucket == WidgetSizeBucket.TwoByOne -> {
                     PillWidget(
-                        settings = settings,
+                        settings = currentSettings,
                         photoProvider = photoProvider,
                         showName = false,
                         singleLineName = false,
@@ -82,7 +91,7 @@ class QuickContactSheetWidget : GlanceAppWidget() {
 
                 sizeBucket == WidgetSizeBucket.ThreeByOne -> {
                     PillWidget(
-                        settings = settings,
+                        settings = currentSettings,
                         photoProvider = photoProvider,
                         showName = true,
                         singleLineName = false,
@@ -91,7 +100,7 @@ class QuickContactSheetWidget : GlanceAppWidget() {
 
                 sizeBucket == WidgetSizeBucket.FourPlusByOne -> {
                     PillWidget(
-                        settings = settings,
+                        settings = currentSettings,
                         photoProvider = photoProvider,
                         showName = true,
                         singleLineName = true,
@@ -100,14 +109,14 @@ class QuickContactSheetWidget : GlanceAppWidget() {
 
                 sizeBucket == WidgetSizeBucket.TwoByTwo || sizeBucket == WidgetSizeBucket.Large -> {
                     LargePhotoWidget(
-                        settings = settings,
+                        settings = currentSettings,
                         photoProvider = photoProvider,
                     )
                 }
 
                 else -> {
                     LargePhotoWidget(
-                        settings = settings,
+                        settings = currentSettings,
                         photoProvider = photoProvider,
                     )
                 }
