@@ -34,6 +34,7 @@ fun ContactAvatar(
 ) {
     val context = LocalContext.current
     val bitmap by produceState(initialValue = null as android.graphics.Bitmap?, photoUri) {
+        value = null
         value = withContext(Dispatchers.IO) {
             context.loadBitmapFromFileOrUri(photoUri)
         }

@@ -27,9 +27,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Message
-import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -285,6 +284,16 @@ private fun ConfigurationRoute(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(text = context.getString(R.string.search_contacts)) },
                         singleLine = true,
+                        trailingIcon = if (searchQuery.isNotBlank()) {
+                            {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Clear,
+                                        contentDescription = "Clear search",
+                                    )
+                                }
+                            }
+                        } else null,
                     )
                 }
 
@@ -330,13 +339,13 @@ private fun ConfigurationRoute(
             initialMessages = currentSettings?.messages.orEmpty(),
             onDismiss = { editorVisible = false },
             onSave = { messages ->
+                editorVisible = false
                 scope.launch {
                     withContext(NonCancellable + Dispatchers.IO) {
                         repository.saveMessages(widgetId, messages)
                         context.refreshQuickContactSheetWidget(widgetId)
                     }
                     snackbarHostState.showSnackbar(context.getString(R.string.messages_saved))
-                    editorVisible = false
                 }
             },
         )
@@ -383,7 +392,7 @@ private fun ConfigurationHeader(
                 .padding(20.dp),
         ) {
             Text(
-                text = "Widget #$widgetId",
+                text = "Widget Preview",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -417,20 +426,6 @@ private fun ConfigurationHeader(
                         Icon(
                             imageVector = Icons.Rounded.Edit,
                             contentDescription = "Edit messages",
-                        )
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledIconButton(onClick = {}, enabled = false) {
-                        Icon(
-                            imageVector = Icons.Rounded.Phone,
-                            contentDescription = null,
-                        )
-                    }
-                    FilledIconButton(onClick = {}, enabled = false) {
-                        Icon(
-                            imageVector = Icons.Rounded.Message,
-                            contentDescription = null,
                         )
                     }
                 }

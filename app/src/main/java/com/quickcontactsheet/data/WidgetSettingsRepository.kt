@@ -76,6 +76,7 @@ class WidgetSettingsRepository private constructor(
         val savedPhotoPath = if (photoBitmap != null) {
             context.saveWidgetPhoto(widgetId, photoBitmap)
         } else {
+            context.deleteWidgetPhoto(widgetId)
             contact.photoUri
         }
 

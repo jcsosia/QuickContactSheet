@@ -99,8 +99,9 @@ fun Context.loadContactPhoto(
 }
 
 fun Context.saveWidgetPhoto(widgetId: Int, bitmap: Bitmap): String {
+    deleteWidgetPhoto(widgetId)
     val dir = File(filesDir, "widget_photos").apply { mkdirs() }
-    val file = File(dir, "widget_$widgetId.jpg")
+    val file = File(dir, "widget_${widgetId}_${System.currentTimeMillis()}.jpg")
     FileOutputStream(file).use { out ->
         bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
     }
@@ -109,8 +110,12 @@ fun Context.saveWidgetPhoto(widgetId: Int, bitmap: Bitmap): String {
 
 fun Context.deleteWidgetPhoto(widgetId: Int) {
     val dir = File(filesDir, "widget_photos")
-    File(dir, "widget_$widgetId.jpg").delete()
-    File(dir, "widget_$widgetId.png").delete()
+    if (!dir.exists()) return
+    dir.listFiles()?.forEach { file ->
+        if (file.name.startsWith("widget_${widgetId}_") || file.name == "widget_$widgetId.jpg" || file.name == "widget_$widgetId.png") {
+            file.delete()
+        }
+    }
 }
 
 private fun decodeSampledBitmapFromFile(file: File, maxDimensionPx: Int): Bitmap? {
