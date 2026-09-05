@@ -1,9 +1,10 @@
 package com.quickcontactsheet.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,11 +52,14 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.quickcontactsheet.data.WidgetMessage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -278,6 +282,7 @@ private fun ReorderableMessageList(
     val listState = rememberLazyListState()
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var draggingOffset by remember { mutableFloatStateOf(0f) }
+    val haptic = LocalHapticFeedback.current
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -289,14 +294,31 @@ private fun ReorderableMessageList(
             key = { _, message -> message.id },
         ) { index, message ->
             val isDragging = draggingIndex == index
-            val elevation by animateFloatAsState(if (isDragging) 12f else 0f, label = "dragElevation")
+            val elevation by animateFloatAsState(if (isDragging) 8f else 0f, label = "dragElevation")
+            val scale by animateFloatAsState(if (isDragging) 1.03f else 1f, label = "dragScale")
+
             Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isDragging) {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    }
+                ),
+                border = if (isDragging) {
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                } else {
+                    null
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .animateItemPlacement()
+                    .zIndex(if (isDragging) 10f else 0f)
+                    .animateItem()
                     .graphicsLayer {
                         translationY = if (isDragging) draggingOffset else 0f
                         shadowElevation = elevation
+                        scaleX = scale
+                        scaleY = scale
                     },
             ) {
                 Row(
@@ -306,52 +328,60 @@ private fun ReorderableMessageList(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
-                    IconButton(
-                        onClick = {},
-                        modifier = Modifier.pointerInput(messages.size, draggingIndex) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = {
-                                    draggingIndex = index
-                                    draggingOffset = 0f
-                                },
-                                onDragCancel = {
-                                    draggingIndex = null
-                                    draggingOffset = 0f
-                                },
-                                onDragEnd = {
-                                    draggingIndex = null
-                                    draggingOffset = 0f
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    val activeIndex = draggingIndex ?: return@detectDragGesturesAfterLongPress
-                                    draggingOffset += dragAmount.y
-                                    val visibleItems = listState.layoutInfo.visibleItemsInfo
-                                    val activeItem = visibleItems.firstOrNull { it.index == activeIndex }
-                                        ?: return@detectDragGesturesAfterLongPress
-                                    val middle = activeItem.offset + draggingOffset + (activeItem.size / 2f)
-                                    val target = visibleItems.firstOrNull { itemInfo ->
-                                        itemInfo.index != activeIndex &&
-                                            middle >= itemInfo.offset &&
-                                            middle <= itemInfo.offset + itemInfo.size
-                                    } ?: return@detectDragGesturesAfterLongPress
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .pointerInput(message.id) {
+                                detectDragGestures(
+                                    onDragStart = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        draggingIndex = messages.indexOfFirst { it.id == message.id }
+                                        draggingOffset = 0f
+                                    },
+                                    onDragCancel = {
+                                        draggingIndex = null
+                                        draggingOffset = 0f
+                                    },
+                                    onDragEnd = {
+                                        draggingIndex = null
+                                        draggingOffset = 0f
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        val activeIndex = draggingIndex ?: return@detectDragGestures
+                                        draggingOffset += dragAmount.y
+                                        val visibleItems = listState.layoutInfo.visibleItemsInfo
+                                        val activeItem = visibleItems.firstOrNull { it.index == activeIndex }
+                                            ?: return@detectDragGestures
+                                        val middle = activeItem.offset + draggingOffset + (activeItem.size / 2f)
+                                        val target = visibleItems.firstOrNull { itemInfo ->
+                                            itemInfo.index != activeIndex &&
+                                                middle >= itemInfo.offset &&
+                                                middle <= itemInfo.offset + itemInfo.size
+                                        } ?: return@detectDragGestures
 
-                                    messages.move(activeIndex, target.index)
-                                    draggingIndex = target.index
-                                    draggingOffset += activeItem.offset - target.offset
-                                },
-                            )
-                        },
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        val targetIndex = target.index
+                                        messages.move(activeIndex, targetIndex)
+                                        draggingIndex = targetIndex
+                                        draggingOffset += activeItem.offset - target.offset
+                                    },
+                                )
+                            },
+                        contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.DragHandle,
                             contentDescription = "Reorder",
+                            tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
                     Text(
                         text = message.text,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onEdit(message) },
                         style = MaterialTheme.typography.bodyLarge,
                     )
 
