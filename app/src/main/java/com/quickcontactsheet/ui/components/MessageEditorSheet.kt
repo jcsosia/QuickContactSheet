@@ -313,7 +313,7 @@ private fun ReorderableMessageList(
                 modifier = Modifier
                     .fillMaxWidth()
                     .zIndex(if (isDragging) 10f else 0f)
-                    .animateItem()
+                    .then(if (!isDragging) Modifier.animateItem() else Modifier)
                     .graphicsLayer {
                         translationY = if (isDragging) draggingOffset else 0f
                         shadowElevation = elevation
@@ -353,18 +353,32 @@ private fun ReorderableMessageList(
                                         val visibleItems = listState.layoutInfo.visibleItemsInfo
                                         val activeItem = visibleItems.firstOrNull { it.index == activeIndex }
                                             ?: return@detectDragGestures
-                                        val middle = activeItem.offset + draggingOffset + (activeItem.size / 2f)
-                                        val target = visibleItems.firstOrNull { itemInfo ->
-                                            itemInfo.index != activeIndex &&
-                                                middle >= itemInfo.offset &&
-                                                middle <= itemInfo.offset + itemInfo.size
-                                        } ?: return@detectDragGestures
 
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        val targetIndex = target.index
-                                        messages.move(activeIndex, targetIndex)
-                                        draggingIndex = targetIndex
-                                        draggingOffset += activeItem.offset - target.offset
+                                        if (draggingOffset > 0 && activeIndex < messages.lastIndex) {
+                                            val nextItem = visibleItems.firstOrNull { it.index == activeIndex + 1 }
+                                            if (nextItem != null) {
+                                                val delta = nextItem.offset - activeItem.offset
+                                                if (delta > 0 && draggingOffset > delta / 2) {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    val targetIndex = activeIndex + 1
+                                                    messages.move(activeIndex, targetIndex)
+                                                    draggingIndex = targetIndex
+                                                    draggingOffset -= delta
+                                                }
+                                            }
+                                        } else if (draggingOffset < 0 && activeIndex > 0) {
+                                            val prevItem = visibleItems.firstOrNull { it.index == activeIndex - 1 }
+                                            if (prevItem != null) {
+                                                val delta = activeItem.offset - prevItem.offset
+                                                if (delta > 0 && draggingOffset < -delta / 2) {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    val targetIndex = activeIndex - 1
+                                                    messages.move(activeIndex, targetIndex)
+                                                    draggingIndex = targetIndex
+                                                    draggingOffset += delta
+                                                }
+                                            }
+                                        }
                                     },
                                 )
                             },
