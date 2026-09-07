@@ -280,20 +280,21 @@ private fun ReorderableMessageList(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
-    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var draggingId by remember { mutableStateOf<Long?>(null) }
     var draggingOffset by remember { mutableFloatStateOf(0f) }
     val haptic = LocalHapticFeedback.current
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         state = listState,
-        modifier = modifier.heightIn(max = 380.dp),
+        userScrollEnabled = draggingId == null,
+        modifier = modifier,
     ) {
         itemsIndexed(
             items = messages,
             key = { _, message -> message.id },
-        ) { index, message ->
-            val isDragging = draggingIndex == index
+        ) { _, message ->
+            val isDragging = draggingId == message.id
             val elevation by animateFloatAsState(if (isDragging) 8f else 0f, label = "dragElevation")
             val scale by animateFloatAsState(if (isDragging) 1.03f else 1f, label = "dragScale")
 
@@ -332,55 +333,71 @@ private fun ReorderableMessageList(
                         modifier = Modifier
                             .size(40.dp)
                             .pointerInput(message.id) {
-                                detectDragGestures(
-                                    onDragStart = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        draggingIndex = messages.indexOfFirst { it.id == message.id }
-                                        draggingOffset = 0f
-                                    },
-                                    onDragCancel = {
-                                        draggingIndex = null
-                                        draggingOffset = 0f
-                                    },
-                                    onDragEnd = {
-                                        draggingIndex = null
-                                        draggingOffset = 0f
-                                    },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        val activeIndex = draggingIndex ?: return@detectDragGestures
-                                        draggingOffset += dragAmount.y
-                                        val visibleItems = listState.layoutInfo.visibleItemsInfo
-                                        val activeItem = visibleItems.firstOrNull { it.index == activeIndex }
-                                            ?: return@detectDragGestures
+                                try {
+                                    detectDragGestures(
+                                        onDragStart = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            draggingId = message.id
+                                            draggingOffset = 0f
+                                        },
+                                        onDragCancel = {
+                                            draggingId = null
+                                            draggingOffset = 0f
+                                        },
+                                        onDragEnd = {
+                                            draggingId = null
+                                            draggingOffset = 0f
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            if (draggingId != message.id) return@detectDragGestures
+                                            draggingOffset += dragAmount.y
+                                            val activeIndex = messages.indexOfFirst { it.id == message.id }
+                                            if (activeIndex < 0) return@detectDragGestures
 
-                                        if (draggingOffset > 0 && activeIndex < messages.lastIndex) {
-                                            val nextItem = visibleItems.firstOrNull { it.index == activeIndex + 1 }
-                                            if (nextItem != null) {
-                                                val delta = nextItem.offset - activeItem.offset
-                                                if (delta > 0 && draggingOffset > delta / 2) {
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                    val targetIndex = activeIndex + 1
-                                                    messages.move(activeIndex, targetIndex)
-                                                    draggingIndex = targetIndex
-                                                    draggingOffset -= delta
+                                            val visibleItems = listState.layoutInfo.visibleItemsInfo
+                                            val activeItem = visibleItems.firstOrNull { it.index == activeIndex }
+                                                ?: return@detectDragGestures
+
+                                            val thresholdRatio = 0.6f
+
+                                            if (draggingOffset > 0 && activeIndex < messages.lastIndex) {
+                                                val nextItem = visibleItems.firstOrNull { it.index == activeIndex + 1 }
+                                                if (nextItem != null) {
+                                                    val delta = nextItem.offset - activeItem.offset
+                                                    if (delta > 0 && draggingOffset > delta * thresholdRatio) {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        val wasAtTop = listState.firstVisibleItemIndex == 0
+                                                        messages.move(activeIndex, activeIndex + 1)
+                                                        draggingOffset -= delta
+                                                        if (wasAtTop) {
+                                                            listState.requestScrollToItem(0, 0)
+                                                        }
+                                                    }
+                                                }
+                                            } else if (draggingOffset < 0 && activeIndex > 0) {
+                                                val prevItem = visibleItems.firstOrNull { it.index == activeIndex - 1 }
+                                                if (prevItem != null) {
+                                                    val delta = activeItem.offset - prevItem.offset
+                                                    if (delta > 0 && draggingOffset < -delta * thresholdRatio) {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        val wasAtTop = listState.firstVisibleItemIndex == 0
+                                                        messages.move(activeIndex, activeIndex - 1)
+                                                        draggingOffset += delta
+                                                        if (wasAtTop) {
+                                                            listState.requestScrollToItem(0, 0)
+                                                        }
+                                                    }
                                                 }
                                             }
-                                        } else if (draggingOffset < 0 && activeIndex > 0) {
-                                            val prevItem = visibleItems.firstOrNull { it.index == activeIndex - 1 }
-                                            if (prevItem != null) {
-                                                val delta = activeItem.offset - prevItem.offset
-                                                if (delta > 0 && draggingOffset < -delta / 2) {
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                    val targetIndex = activeIndex - 1
-                                                    messages.move(activeIndex, targetIndex)
-                                                    draggingIndex = targetIndex
-                                                    draggingOffset += delta
-                                                }
-                                            }
-                                        }
-                                    },
-                                )
+                                        },
+                                    )
+                                } finally {
+                                    if (draggingId == message.id) {
+                                        draggingId = null
+                                        draggingOffset = 0f
+                                    }
+                                }
                             },
                         contentAlignment = Alignment.Center,
                     ) {
