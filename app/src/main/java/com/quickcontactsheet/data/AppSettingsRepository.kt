@@ -19,6 +19,7 @@ class AppSettingsRepository private constructor(
         context.appSettingsDataStore.data.map { preferences ->
             AppSettings(
                 hapticFeedbackEnabled = preferences[KEY_HAPTIC_FEEDBACK] ?: true,
+                quickMessagesOnTop = preferences[KEY_QUICK_MESSAGES_ON_TOP] ?: false,
             )
         }
 
@@ -32,8 +33,17 @@ class AppSettingsRepository private constructor(
         }
     }
 
+    suspend fun isQuickMessagesOnTop(): Boolean = getAppSettings().quickMessagesOnTop
+
+    suspend fun setQuickMessagesOnTop(enabled: Boolean) {
+        context.appSettingsDataStore.edit { preferences ->
+            preferences[KEY_QUICK_MESSAGES_ON_TOP] = enabled
+        }
+    }
+
     companion object {
         val KEY_HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback_enabled")
+        val KEY_QUICK_MESSAGES_ON_TOP = booleanPreferencesKey("quick_messages_on_top")
 
         @Volatile
         private var instance: AppSettingsRepository? = null

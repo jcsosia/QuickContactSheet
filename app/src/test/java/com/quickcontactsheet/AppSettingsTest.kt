@@ -12,14 +12,23 @@ class AppSettingsTest {
     fun `default app settings has expected defaults`() {
         val settings = AppSettings()
         assertTrue(settings.hapticFeedbackEnabled)
+        assertFalse(settings.quickMessagesOnTop)
     }
 
     @Test
     fun `settings can be copied with modified values`() {
-        val original = AppSettings(hapticFeedbackEnabled = true)
-        val modified = original.copy(hapticFeedbackEnabled = false)
+        val original = AppSettings(
+            hapticFeedbackEnabled = true,
+            quickMessagesOnTop = false,
+        )
+        val modified = original.copy(
+            hapticFeedbackEnabled = false,
+            quickMessagesOnTop = true,
+        )
 
         assertTrue(original.hapticFeedbackEnabled)
+        assertFalse(original.quickMessagesOnTop)
         assertFalse(modified.hapticFeedbackEnabled)
+        assertTrue(modified.quickMessagesOnTop)
     }
 }

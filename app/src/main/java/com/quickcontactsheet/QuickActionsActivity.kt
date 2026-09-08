@@ -141,6 +141,7 @@ private fun QuickActionsRoute(
                 QuickActionsSheet(
                     settings = current,
                     hapticFeedbackEnabled = appSettings.hapticFeedbackEnabled,
+                    quickMessagesOnTop = appSettings.quickMessagesOnTop,
                     onClose = onClose,
                     onMessageError = { message ->
                         scope.launch { snackbarHostState.showSnackbar(message) }
@@ -155,6 +156,7 @@ private fun QuickActionsRoute(
 private fun QuickActionsSheet(
     settings: WidgetSettings,
     hapticFeedbackEnabled: Boolean,
+    quickMessagesOnTop: Boolean,
     onClose: () -> Unit,
     onMessageError: (String) -> Unit,
 ) {
@@ -174,13 +176,7 @@ private fun QuickActionsSheet(
         }
     }
 
-    Column(
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 28.dp),
-    ) {
+    val contactRow: @Composable () -> Unit = {
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -257,7 +253,9 @@ private fun QuickActionsSheet(
                 }
             }
         }
+    }
 
+    val messagesRow: @Composable () -> Unit = {
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -325,6 +323,22 @@ private fun QuickActionsSheet(
                     }
                 }
             }
+        }
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 28.dp),
+    ) {
+        if (quickMessagesOnTop) {
+            messagesRow()
+            contactRow()
+        } else {
+            contactRow()
+            messagesRow()
         }
     }
 }

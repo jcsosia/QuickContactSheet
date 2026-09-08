@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.UploadFile
+import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.Widgets
 import androidx.compose.material3.AlertDialog
@@ -208,6 +209,18 @@ private fun MainRoute(activity: ComponentActivity) {
                     onCheckedChange = { enabled ->
                         scope.launch {
                             appSettingsRepo.setHapticFeedbackEnabled(enabled)
+                        }
+                    },
+                )
+                SettingsDivider()
+                SettingsSwitchTile(
+                    title = context.getString(R.string.settings_messages_top_title),
+                    subtitle = context.getString(R.string.settings_messages_top_subtitle),
+                    icon = Icons.Rounded.VerticalAlignTop,
+                    checked = appSettings.quickMessagesOnTop,
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            appSettingsRepo.setQuickMessagesOnTop(enabled)
                         }
                     },
                 )

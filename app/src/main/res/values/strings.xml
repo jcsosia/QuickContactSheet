@@ -65,6 +65,8 @@
     <string name="settings_permissions_subtitle">Manage contacts and system permissions</string>
     <string name="settings_haptic_title">Haptic feedback</string>
     <string name="settings_haptic_subtitle">Vibrate when tapping quick actions</string>
+    <string name="settings_messages_top_title">Messages row at top</string>
+    <string name="settings_messages_top_subtitle">Show quick message buttons above contact actions</string>
     <string name="settings_about_title">About Quick Contact Sheet</string>
     <string name="settings_version">Version %s</string>
     <string name="backup_restore_title">Backup &amp; restore</string>
