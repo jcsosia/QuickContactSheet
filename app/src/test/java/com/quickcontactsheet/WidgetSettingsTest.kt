@@ -94,6 +94,22 @@ class WidgetSettingsTest {
         assertEquals("Mobile", decoded?.primaryPhoneLabel)
     }
 
+    @Test
+    fun `decodes json with photoUri correctly`() {
+        val jsonWithPhoto = JSONObject().apply {
+            put("widgetId", 101)
+            put("displayName", "Taylor")
+            put("photoUri", "/data/user/0/com.quickcontactsheet/files/widget_photos/widget_101.jpg")
+            put("phoneNumbers", JSONArray().apply {
+                put("555-0100")
+            })
+        }.toString()
+
+        val decoded = decodeWidgetSettingsForTest(jsonWithPhoto)
+        assertEquals(101, decoded?.widgetId)
+        assertEquals("/data/user/0/com.quickcontactsheet/files/widget_photos/widget_101.jpg", decoded?.photoUri)
+    }
+
     private fun decodeWidgetSettingsForTest(raw: String): WidgetSettings? =
         runCatching {
             val json = JSONObject(raw)
@@ -102,6 +118,7 @@ class WidgetSettingsTest {
                 widgetId = json.getInt("widgetId"),
                 displayName = json.optString("displayName"),
                 selectedPhoneNumber = json.optString("selectedPhoneNumber").ifBlank { null },
+                photoUri = json.optString("photoUri").ifBlank { null },
                 phoneNumbers = buildList {
                     for (index in 0 until phoneArray.length()) {
                         val optObj = phoneArray.optJSONObject(index)

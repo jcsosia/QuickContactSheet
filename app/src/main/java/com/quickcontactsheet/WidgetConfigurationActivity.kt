@@ -10,11 +10,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -26,12 +28,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -152,8 +158,26 @@ private fun ConfigurationRoute(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var editorVisible by rememberSaveable { mutableStateOf(false) }
     var shouldOpenEditor by rememberSaveable { mutableStateOf(openMessageEditor) }
+    var photoOptionsVisible by rememberSaveable { mutableStateOf(false) }
     var pendingSelectedContact by remember { mutableStateOf<ContactSummary?>(null) }
     var numberPickerContact by remember { mutableStateOf<ContactSummary?>(null) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) {
+            val appContext = context.applicationContext
+            scope.launch {
+                val success = withContext(NonCancellable + Dispatchers.IO) {
+                    repository.saveCustomPhoto(widgetId, uri)
+                }
+                if (success) {
+                    appContext.refreshQuickContactSheetWidget(widgetId)
+                    snackbarHostState.showSnackbar(context.getString(R.string.photo_updated))
+                }
+            }
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -273,6 +297,7 @@ private fun ConfigurationRoute(
                     widgetId = widgetId,
                     currentSettings = currentSettings,
                     onEditMessages = { editorVisible = true },
+                    onChangePhoto = { photoOptionsVisible = true },
                     onSelectNumber = {
                         val configuredContact = contacts.firstOrNull { it.contactId == currentSettings?.contactId }
                             ?: currentSettings?.let { settings ->
@@ -407,6 +432,40 @@ private fun ConfigurationRoute(
             },
         )
     }
+
+    if (photoOptionsVisible && widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+        val appContext = context.applicationContext
+        PhotoOptionsSheet(
+            canResetToContact = currentSettings?.contactId != null,
+            hasPhoto = !currentSettings?.photoUri.isNullOrBlank(),
+            onDismiss = { photoOptionsVisible = false },
+            onChoosePhoto = {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                )
+            },
+            onResetPhoto = {
+                scope.launch {
+                    val success = withContext(NonCancellable + Dispatchers.IO) {
+                        repository.resetToContactPhoto(widgetId)
+                    }
+                    if (success) {
+                        appContext.refreshQuickContactSheetWidget(widgetId)
+                        snackbarHostState.showSnackbar(context.getString(R.string.photo_updated))
+                    }
+                }
+            },
+            onRemovePhoto = {
+                scope.launch {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        repository.removePhoto(widgetId)
+                    }
+                    appContext.refreshQuickContactSheetWidget(widgetId)
+                    snackbarHostState.showSnackbar(context.getString(R.string.photo_removed))
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -441,6 +500,7 @@ private fun ConfigurationHeader(
     currentSettings: WidgetSettings?,
     onEditMessages: () -> Unit,
     onSelectNumber: () -> Unit = {},
+    onChangePhoto: () -> Unit = {},
 ) {
     Card {
         Column(
@@ -460,11 +520,37 @@ private fun ConfigurationHeader(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    ContactAvatar(
-                        photoUri = currentSettings.photoUri,
-                        contentDescription = currentSettings.displayName,
-                        modifier = Modifier.size(72.dp),
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clickable(onClick = onChangePhoto),
+                    ) {
+                        ContactAvatar(
+                            photoUri = currentSettings.photoUri,
+                            contentDescription = currentSettings.displayName,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            shadowElevation = 2.dp,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .align(Alignment.BottomEnd),
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Edit,
+                                    contentDescription = stringResource(R.string.change_photo),
+                                    modifier = Modifier.size(14.dp),
+                                )
+                            }
+                        }
+                    }
                     Column(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.weight(1f),
@@ -770,6 +856,127 @@ private fun SelectNumberSheet(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PhotoOptionsSheet(
+    canResetToContact: Boolean,
+    hasPhoto: Boolean,
+    onDismiss: () -> Unit,
+    onChoosePhoto: () -> Unit,
+    onResetPhoto: () -> Unit,
+    onRemovePhoto: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.photo_options),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+
+            Surface(
+                onClick = {
+                    onDismiss()
+                    onChoosePhoto()
+                },
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PhotoLibrary,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = stringResource(R.string.choose_from_photos),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+
+            if (canResetToContact) {
+                Surface(
+                    onClick = {
+                        onDismiss()
+                        onResetPhoto()
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Refresh,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.reset_to_contact_photo),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+            }
+
+            if (hasPhoto) {
+                Surface(
+                    onClick = {
+                        onDismiss()
+                        onRemovePhoto()
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                        Text(
+                            text = stringResource(R.string.remove_photo),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
                     }
                 }
             }

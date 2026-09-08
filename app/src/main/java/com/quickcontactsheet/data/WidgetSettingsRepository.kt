@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import android.net.Uri
 import android.provider.ContactsContract
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -116,6 +117,46 @@ class WidgetSettingsRepository private constructor(
                 messages = messages.filter { it.text.isNotBlank() },
             ),
         )
+    }
+
+    suspend fun saveCustomPhoto(
+        widgetId: Int,
+        imageUri: Uri,
+    ): Boolean = withContext(Dispatchers.IO) {
+        val current = getWidgetSettings(widgetId) ?: return@withContext false
+        val photoBitmap = context.loadBitmapFromImageUri(imageUri, maxDimensionPx = 768) ?: return@withContext false
+        val savedPhotoPath = context.saveWidgetPhoto(widgetId, photoBitmap)
+        saveWidgetSettings(current.copy(photoUri = savedPhotoPath))
+        true
+    }
+
+    suspend fun resetToContactPhoto(
+        widgetId: Int,
+    ): Boolean = withContext(Dispatchers.IO) {
+        val current = getWidgetSettings(widgetId) ?: return@withContext false
+        val lookupUri = current.contactLookupUri
+        val photoBitmap = context.loadContactPhoto(
+            contactId = current.contactId,
+            lookupUriString = lookupUri,
+            photoUriString = null,
+            maxDimensionPx = 768,
+        )
+        val savedPhotoPath = if (photoBitmap != null) {
+            context.saveWidgetPhoto(widgetId, photoBitmap)
+        } else {
+            context.deleteWidgetPhoto(widgetId)
+            null
+        }
+        saveWidgetSettings(current.copy(photoUri = savedPhotoPath))
+        true
+    }
+
+    suspend fun removePhoto(
+        widgetId: Int,
+    ) = withContext(Dispatchers.IO) {
+        val current = getWidgetSettings(widgetId) ?: return@withContext
+        context.deleteWidgetPhoto(widgetId)
+        saveWidgetSettings(current.copy(photoUri = null))
     }
 
     suspend fun saveWidgetSettings(settings: WidgetSettings) {

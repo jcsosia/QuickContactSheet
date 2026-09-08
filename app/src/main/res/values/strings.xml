@@ -53,4 +53,11 @@
     <string name="select_default_number_desc">Choose which number to use for quick calls and messages with %s.</string>
     <string name="multiple_numbers_format">%1$d numbers</string>
     <string name="change_default_number">Change default number</string>
+    <string name="change_photo">Change photo</string>
+    <string name="photo_options">Photo options</string>
+    <string name="choose_from_photos">Choose from Photos</string>
+    <string name="reset_to_contact_photo">Reset to contact photo</string>
+    <string name="remove_photo">Remove photo</string>
+    <string name="photo_updated">Photo updated</string>
+    <string name="photo_removed">Photo removed</string>
 </resources>

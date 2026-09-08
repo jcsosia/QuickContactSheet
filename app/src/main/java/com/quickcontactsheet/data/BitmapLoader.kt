@@ -4,6 +4,8 @@ import android.content.ContentUris
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import android.provider.ContactsContract
 import java.io.File
@@ -149,3 +151,38 @@ private fun decodeSampledBitmapFromBytes(bytes: ByteArray, maxDimensionPx: Int):
 // Backward-compatibility alias
 fun Context.loadBitmapFromUri(uriString: String?, maxDimensionPx: Int = 512): Bitmap? =
     loadBitmapFromFileOrUri(uriString, maxDimensionPx)
+
+fun Context.loadBitmapFromImageUri(
+    uri: Uri,
+    maxDimensionPx: Int = 768,
+): Bitmap? {
+    return runCatching {
+        val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+        val bitmap = decodeSampledBitmapFromBytes(bytes, maxDimensionPx) ?: return null
+
+        val orientation = runCatching {
+            java.io.ByteArrayInputStream(bytes).use { stream ->
+                val exif = ExifInterface(stream)
+                exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            }
+        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+
+        val rotationDegrees = when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+            else -> 0f
+        }
+
+        if (rotationDegrees != 0f) {
+            val matrix = Matrix().apply { postRotate(rotationDegrees) }
+            val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            if (rotated != bitmap) {
+                bitmap.recycle()
+            }
+            rotated
+        } else {
+            bitmap
+        }
+    }.getOrNull()
+}
