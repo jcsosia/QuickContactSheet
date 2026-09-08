@@ -450,7 +450,7 @@ private fun ConfigurationHeader(
                 .padding(20.dp),
         ) {
             Text(
-                text = "Widget Preview",
+                text = stringResource(R.string.widget_settings),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -524,7 +524,7 @@ private fun ConfigurationHeader(
                 }
                 if (currentSettings.messages.isEmpty()) {
                     Text(
-                        text = "No messages yet",
+                        text = stringResource(R.string.no_messages),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -533,7 +533,7 @@ private fun ConfigurationHeader(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
                     ) {
-                        currentSettings.messages.take(3).forEach { message ->
+                        currentSettings.messages.forEach { message ->
                             AssistChip(
                                 onClick = onEditMessages,
                                 label = { Text(text = message.text) },
@@ -541,7 +541,7 @@ private fun ConfigurationHeader(
                         }
                         AssistChip(
                             onClick = onEditMessages,
-                            label = { Text(text = "Edit messages") },
+                            label = { Text(text = stringResource(R.string.message_editor)) },
                         )
                     }
                 }

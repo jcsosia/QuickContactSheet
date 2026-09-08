@@ -41,6 +41,7 @@
     <string name="retry">Retry</string>
     <string name="messages_saved">Messages saved</string>
     <string name="widget_saved">Widget saved</string>
+    <string name="widget_settings">Widget Settings</string>
     <string name="widget_title_fallback">Contact</string>
     <string name="reorder">Reorder</string>
     <string name="delete">Delete</string>
