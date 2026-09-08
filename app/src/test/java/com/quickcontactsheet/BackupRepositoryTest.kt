@@ -172,5 +172,27 @@ class BackupRepositoryTest {
         assertTrue(phoneNumbersMatch("+44 20 7946 0991", "020 7946 0991"))
         assertFalse(phoneNumbersMatch("123", "456"))
     }
+
+    @Test
+    fun `preset removal selectively removes matching preset and keeps others`() {
+        val carmen = ContactPreset(
+            displayName = "Carmen",
+            phoneNumbers = listOf(ContactPhoneNumber("555-0100", "Mobile")),
+            messages = listOf(WidgetMessage(1, "Testing")),
+        )
+        val dad = ContactPreset(
+            displayName = "Dad",
+            phoneNumbers = listOf(ContactPhoneNumber("555-0200", "Mobile")),
+            messages = listOf(WidgetMessage(2, "On my way")),
+        )
+        val list = mutableListOf(carmen, dad)
+
+        // Simulate deleting Carmen
+        list.removeAll { it.matchesContact(carmen.contactLookupKey, carmen.displayName, carmen.phoneNumbers) }
+
+        assertEquals(1, list.size)
+        assertEquals("Dad", list[0].displayName)
+    }
 }
+
 

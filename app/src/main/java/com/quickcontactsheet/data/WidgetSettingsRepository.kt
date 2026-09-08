@@ -343,11 +343,26 @@ class WidgetSettingsRepository private constructor(
         updatedCount
     }
 
+    suspend fun deletePreset(preset: ContactPreset) = withContext(Dispatchers.IO) {
+        val currentPresets = getAllPresets().toMutableList()
+        currentPresets.removeAll {
+            it.matchesContact(preset.contactLookupKey, preset.displayName, preset.phoneNumbers)
+        }
+        saveAllPresets(currentPresets)
+    }
+
+    suspend fun clearAllPresets() = withContext(Dispatchers.IO) {
+        context.widgetDataStore.edit { preferences ->
+            preferences.remove(PRESETS_PREFERENCE_KEY)
+        }
+    }
+
     private suspend fun saveAllPresets(presets: List<ContactPreset>) {
         context.widgetDataStore.edit { preferences ->
             preferences[PRESETS_PREFERENCE_KEY] = encodePresetsList(presets)
         }
     }
+
 
     private fun encodePresetsList(presets: List<ContactPreset>): String {
         val array = JSONArray()

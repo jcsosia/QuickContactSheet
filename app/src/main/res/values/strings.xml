@@ -88,5 +88,15 @@
     <string name="import_messages">Import messages</string>
     <string name="preset_saved">Preset saved</string>
     <string name="restored_messages_for">Restored %1$d saved messages for %2$s</string>
+    <string name="manage_presets_title">Saved message presets</string>
+    <string name="manage_presets_subtitle_format">%1$d contacts saved</string>
+    <string name="manage_presets_subtitle_empty">No saved presets</string>
+    <string name="clear_all">Clear all</string>
+    <string name="clear_all_presets_title">Clear all presets?</string>
+    <string name="clear_all_presets_message">This will remove all saved contact message presets from your local cache. Active widgets on your home screen will not be affected.</string>
+    <string name="no_presets_found">No saved presets yet.\nWhen you set up quick messages for a contact, they are remembered here for reuse.</string>
+    <string name="preset_deleted">Deleted preset for %s</string>
+    <string name="all_presets_cleared">Cleared all saved presets</string>
 </resources>
+
 

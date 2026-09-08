@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.rounded.Bookmarks
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Security
@@ -49,6 +50,7 @@ import com.quickcontactsheet.data.AppSettingsRepository
 import com.quickcontactsheet.data.BackupData
 import com.quickcontactsheet.data.BackupRepository
 import com.quickcontactsheet.data.WidgetSettingsRepository
+import com.quickcontactsheet.ui.components.ManagePresetsSheet
 import com.quickcontactsheet.ui.components.SettingsDivider
 import com.quickcontactsheet.ui.components.SettingsGroup
 import com.quickcontactsheet.ui.components.SettingsNavigationTile
@@ -84,8 +86,10 @@ private fun MainRoute(activity: ComponentActivity) {
     val appSettings by appSettingsRepo.appSettingsFlow.collectAsState(initial = AppSettings())
     val repository = remember(context) { WidgetSettingsRepository.get(context) }
     val backupRepo = remember(context) { BackupRepository.get(context) }
+    val allPresets by repository.allPresetsFlow.collectAsState(initial = emptyList())
 
     var pendingRestoreData by remember { mutableStateOf<BackupData?>(null) }
+    var managePresetsVisible by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json"),
@@ -237,11 +241,46 @@ private fun MainRoute(activity: ComponentActivity) {
                         importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
                     },
                 )
+                SettingsDivider()
+                SettingsNavigationTile(
+                    title = context.getString(R.string.manage_presets_title),
+                    subtitle = if (allPresets.isEmpty()) {
+                        context.getString(R.string.manage_presets_subtitle_empty)
+                    } else {
+                        context.getString(R.string.manage_presets_subtitle_format, allPresets.size)
+                    },
+                    icon = Icons.Rounded.Bookmarks,
+                    onClick = { managePresetsVisible = true },
+                )
             }
         }
     }
 
+    if (managePresetsVisible) {
+        ManagePresetsSheet(
+            presets = allPresets,
+            onDismiss = { managePresetsVisible = false },
+            onDeletePreset = { preset ->
+                scope.launch {
+                    repository.deletePreset(preset)
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.preset_deleted, preset.displayName),
+                    )
+                }
+            },
+            onClearAll = {
+                scope.launch {
+                    repository.clearAllPresets()
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.all_presets_cleared),
+                    )
+                }
+            },
+        )
+    }
+
     pendingRestoreData?.let { data ->
+
         val totalMessages = data.presets.sumOf { it.messages.size }
         AlertDialog(
             onDismissRequest = { pendingRestoreData = null },
