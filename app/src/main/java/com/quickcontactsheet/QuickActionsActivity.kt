@@ -46,10 +46,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.quickcontactsheet.data.AppSettings
+import com.quickcontactsheet.data.AppSettingsRepository
 import com.quickcontactsheet.data.WidgetSettings
 import com.quickcontactsheet.data.WidgetSettingsRepository
 import com.quickcontactsheet.ui.components.ContactAvatar
 import com.quickcontactsheet.ui.theme.QuickContactSheetTheme
+import com.quickcontactsheet.util.HapticFeedbackHelper
 import kotlinx.coroutines.launch
 
 class QuickActionsActivity : ComponentActivity() {
@@ -96,6 +99,8 @@ private fun QuickActionsRoute(
     val context = LocalContext.current
     val repository = remember(context) { WidgetSettingsRepository.get(context) }
     val settings by repository.widgetSettingsFlow(widgetId).collectAsState(initial = null)
+    val appSettingsRepo = remember(context) { AppSettingsRepository.get(context) }
+    val appSettings by appSettingsRepo.appSettingsFlow.collectAsState(initial = AppSettings())
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -135,6 +140,7 @@ private fun QuickActionsRoute(
             ) {
                 QuickActionsSheet(
                     settings = current,
+                    hapticFeedbackEnabled = appSettings.hapticFeedbackEnabled,
                     onClose = onClose,
                     onMessageError = { message ->
                         scope.launch { snackbarHostState.showSnackbar(message) }
@@ -148,10 +154,17 @@ private fun QuickActionsRoute(
 @Composable
 private fun QuickActionsSheet(
     settings: WidgetSettings,
+    hapticFeedbackEnabled: Boolean,
     onClose: () -> Unit,
     onMessageError: (String) -> Unit,
 ) {
     val context = LocalContext.current
+
+    fun performHaptic() {
+        if (hapticFeedbackEnabled) {
+            HapticFeedbackHelper.performClick(context)
+        }
+    }
 
     fun launchOrNotify(intent: android.content.Intent?, fallbackMessage: String) {
         when {
@@ -178,6 +191,7 @@ private fun QuickActionsSheet(
                 contentDescription = settings.displayName,
                 modifier = Modifier.size(96.dp),
                 onClick = {
+                    performHaptic()
                     launchOrNotify(
                         QuickContactIntents.createContactIntent(settings),
                         context.getString(R.string.launch_contact_failed),
@@ -190,6 +204,7 @@ private fun QuickActionsSheet(
             ) {
                 Surface(
                     onClick = {
+                        performHaptic()
                         launchOrNotify(
                             QuickContactIntents.createDialIntent(settings),
                             context.getString(R.string.no_phone_number),
@@ -216,6 +231,7 @@ private fun QuickActionsSheet(
 
                 Surface(
                     onClick = {
+                        performHaptic()
                         launchOrNotify(
                             QuickContactIntents.createSmsIntent(settings),
                             context.getString(R.string.no_phone_number),
@@ -249,6 +265,7 @@ private fun QuickActionsSheet(
             items(settings.messages, key = { it.id }) { message ->
                 Surface(
                     onClick = {
+                        performHaptic()
                         launchOrNotify(
                             QuickContactIntents.createSmsIntent(settings, message.text),
                             context.getString(R.string.no_phone_number),
@@ -274,6 +291,7 @@ private fun QuickActionsSheet(
             item {
                 Surface(
                     onClick = {
+                        performHaptic()
                         context.startActivity(
                             QuickContactIntents.createConfigurationIntent(
                                 context = context,

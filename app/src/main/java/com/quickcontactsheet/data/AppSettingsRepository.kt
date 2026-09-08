@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private const val APP_SETTINGS_DATASTORE = "app_settings"
@@ -20,6 +21,10 @@ class AppSettingsRepository private constructor(
                 hapticFeedbackEnabled = preferences[KEY_HAPTIC_FEEDBACK] ?: true,
             )
         }
+
+    suspend fun getAppSettings(): AppSettings = appSettingsFlow.first()
+
+    suspend fun isHapticFeedbackEnabled(): Boolean = getAppSettings().hapticFeedbackEnabled
 
     suspend fun setHapticFeedbackEnabled(enabled: Boolean) {
         context.appSettingsDataStore.edit { preferences ->
