@@ -166,7 +166,7 @@ private fun MainRoute(activity: ComponentActivity) {
                     start = 20.dp,
                     top = innerPadding.calculateTopPadding() + 24.dp,
                     end = 20.dp,
-                    bottom = innerPadding.calculateBottomPadding() + 24.dp,
+                    bottom = innerPadding.calculateBottomPadding() + 96.dp,
                 ),
         ) {
             Card(
