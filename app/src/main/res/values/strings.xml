@@ -67,4 +67,26 @@
     <string name="settings_haptic_subtitle">Vibrate when tapping quick actions</string>
     <string name="settings_about_title">About Quick Contact Sheet</string>
     <string name="settings_version">Version %s</string>
+    <string name="backup_restore_title">Backup &amp; restore</string>
+    <string name="export_backup_title">Export backup</string>
+    <string name="export_backup_subtitle">Save quick message presets to a file</string>
+    <string name="restore_backup_title">Restore backup</string>
+    <string name="restore_backup_subtitle">Import quick message presets from a file</string>
+    <string name="export_success">Exported %1$d contact presets</string>
+    <string name="export_failed">Failed to export backup</string>
+    <string name="restore_dialog_title">Restore quick messages?</string>
+    <string name="restore_dialog_message">Found %1$d contact presets with %2$d messages. This will add or update saved presets and active widgets.</string>
+    <string name="restore_confirm">Restore</string>
+    <string name="restore_success">Restored %1$d contact presets</string>
+    <string name="restore_failed">Failed to restore backup</string>
+    <string name="no_presets_to_export">No saved messages or contacts to back up yet.</string>
+    <string name="invalid_backup_file">Selected file is not a valid Quick Contact Sheet backup.</string>
+    <string name="more_options">More options</string>
+    <string name="restore_from_saved">Restore saved messages</string>
+    <string name="save_as_preset">Save as preset</string>
+    <string name="export_messages">Export messages</string>
+    <string name="import_messages">Import messages</string>
+    <string name="preset_saved">Preset saved</string>
+    <string name="restored_messages_for">Restored %1$d saved messages for %2$s</string>
 </resources>
+

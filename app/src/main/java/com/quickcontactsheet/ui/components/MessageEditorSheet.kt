@@ -1,5 +1,8 @@
 package com.quickcontactsheet.ui.components
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -31,10 +34,17 @@ import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material.icons.rounded.UploadFile
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -50,6 +60,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.toMutableStateList
@@ -62,13 +73,19 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import com.quickcontactsheet.R
+import com.quickcontactsheet.data.BackupRepository
+import com.quickcontactsheet.data.ContactPreset
 import com.quickcontactsheet.data.WidgetMessage
+import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -79,11 +96,55 @@ fun MessageEditorSheet(
     initialMessages: List<WidgetMessage>,
     onDismiss: () -> Unit,
     onSave: (List<WidgetMessage>) -> Unit,
+    contactName: String? = null,
+    savedPresets: List<WidgetMessage> = emptyList(),
 ) {
+    val context = LocalContext.current
+    val backupRepo = remember(context) { BackupRepository.get(context) }
+    val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val messages = remember(initialMessages) { initialMessages.toMutableStateList() }
     var draftText by remember { mutableStateOf("") }
     var editingId by remember { mutableLongStateOf(0L) }
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    val exportMessagesLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val currentList = messages.toList()
+                val preset = ContactPreset(
+                    displayName = contactName?.ifBlank { null } ?: "Quick Messages",
+                    messages = currentList,
+                )
+                val result = backupRepo.exportToUri(uri, listOf(preset))
+                if (result.isSuccess) {
+                    Toast.makeText(context, context.getString(R.string.export_success, 1), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, context.getString(R.string.export_failed), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val importMessagesLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = backupRepo.importFromUri(uri)
+                val backupData = result.getOrNull()
+                val importedMsgs = backupData?.presets?.flatMap { it.messages }
+                if (!importedMsgs.isNullOrEmpty()) {
+                    messages.addAll(importedMsgs)
+                    Toast.makeText(context, context.getString(R.string.messages_saved), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, context.getString(R.string.invalid_backup_file), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     fun commitDraft() {
         val cleaned = draftText.trim()
@@ -182,7 +243,7 @@ fun MessageEditorSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 12.dp),
+                    .padding(start = 20.dp, end = 12.dp, top = 4.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -198,28 +259,109 @@ fun MessageEditorSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Button(
-                    onClick = { handleSave() },
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text("Done")
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreVert,
+                                contentDescription = stringResource(R.string.more_options),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                        ) {
+                            if (savedPresets.isNotEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.restore_from_saved)) },
+                                    leadingIcon = {
+                                        Icon(Icons.Rounded.Restore, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        menuExpanded = false
+                                        messages.clear()
+                                        messages.addAll(savedPresets)
+                                    },
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.export_messages)) },
+                                leadingIcon = {
+                                    Icon(Icons.Rounded.UploadFile, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    val safeName = contactName?.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                                        ?.ifBlank { "quick_messages" } ?: "quick_messages"
+                                    exportMessagesLauncher.launch("${safeName}_messages.json")
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.import_messages)) },
+                                leadingIcon = {
+                                    Icon(Icons.Rounded.FileDownload, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    importMessagesLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                                },
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = { handleSave() },
+                    ) {
+                        Text("Done")
+                    }
                 }
             }
 
             // Message List / Empty State
             if (messages.isEmpty()) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 28.dp),
-                    contentAlignment = Alignment.Center,
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
                         text = "No quick messages yet.\nAdd presets like \"On my way!\" or \"Call you in 5\" for 1-tap texting from your widget.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (savedPresets.isNotEmpty()) {
+                        val nameStr = contactName?.ifBlank { null } ?: "contact"
+                        AssistChip(
+                            onClick = {
+                                messages.clear()
+                                messages.addAll(savedPresets)
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Rounded.Restore,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = stringResource(
+                                        R.string.restored_messages_for,
+                                        savedPresets.size,
+                                        nameStr,
+                                    ),
+                                )
+                            },
+                        )
+                    }
                 }
             } else {
+
                 ReorderableMessageList(
                     messages = messages,
                     onEdit = { message ->

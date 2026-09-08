@@ -13,10 +13,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.Widgets
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -26,16 +32,23 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.quickcontactsheet.data.AppSettings
 import com.quickcontactsheet.data.AppSettingsRepository
+import com.quickcontactsheet.data.BackupData
+import com.quickcontactsheet.data.BackupRepository
+import com.quickcontactsheet.data.WidgetSettingsRepository
 import com.quickcontactsheet.ui.components.SettingsDivider
 import com.quickcontactsheet.ui.components.SettingsGroup
 import com.quickcontactsheet.ui.components.SettingsNavigationTile
@@ -43,7 +56,11 @@ import com.quickcontactsheet.ui.components.SettingsSwitchTile
 import com.quickcontactsheet.ui.components.SettingsTile
 import com.quickcontactsheet.ui.theme.QuickContactSheetTheme
 import com.quickcontactsheet.widget.QuickContactSheetWidgetReceiver
+import com.quickcontactsheet.widget.refreshQuickContactSheetWidgets
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +82,48 @@ private fun MainRoute(activity: ComponentActivity) {
     val scope = rememberCoroutineScope()
     val appSettingsRepo = remember(context) { AppSettingsRepository.get(context) }
     val appSettings by appSettingsRepo.appSettingsFlow.collectAsState(initial = AppSettings())
+    val repository = remember(context) { WidgetSettingsRepository.get(context) }
+    val backupRepo = remember(context) { BackupRepository.get(context) }
+
+    var pendingRestoreData by remember { mutableStateOf<BackupData?>(null) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val presets = repository.getAllPresets()
+                if (presets.isEmpty()) {
+                    snackbarHostState.showSnackbar(context.getString(R.string.no_presets_to_export))
+                    return@launch
+                }
+                val result = backupRepo.exportToUri(uri, presets)
+                if (result.isSuccess) {
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.export_success, result.getOrNull() ?: presets.size),
+                    )
+                } else {
+                    snackbarHostState.showSnackbar(context.getString(R.string.export_failed))
+                }
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = backupRepo.importFromUri(uri)
+                val backupData = result.getOrNull()
+                if (backupData != null && backupData.presets.isNotEmpty()) {
+                    pendingRestoreData = backupData
+                } else {
+                    snackbarHostState.showSnackbar(context.getString(R.string.invalid_backup_file))
+                }
+            }
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -155,6 +214,71 @@ private fun MainRoute(activity: ComponentActivity) {
                     icon = Icons.Rounded.Info,
                 )
             }
+
+            SettingsGroup(
+                title = context.getString(R.string.backup_restore_title),
+            ) {
+                SettingsNavigationTile(
+                    title = context.getString(R.string.export_backup_title),
+                    subtitle = context.getString(R.string.export_backup_subtitle),
+                    icon = Icons.Rounded.UploadFile,
+                    onClick = {
+                        val dateFormat = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+                        val fileName = "quick_contact_sheet_backup_${dateFormat.format(Date())}.json"
+                        exportLauncher.launch(fileName)
+                    },
+                )
+                SettingsDivider()
+                SettingsNavigationTile(
+                    title = context.getString(R.string.restore_backup_title),
+                    subtitle = context.getString(R.string.restore_backup_subtitle),
+                    icon = Icons.Rounded.FileDownload,
+                    onClick = {
+                        importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                    },
+                )
+            }
         }
     }
+
+    pendingRestoreData?.let { data ->
+        val totalMessages = data.presets.sumOf { it.messages.size }
+        AlertDialog(
+            onDismissRequest = { pendingRestoreData = null },
+            title = { Text(text = stringResource(R.string.restore_dialog_title)) },
+            text = {
+                Text(
+                    text = stringResource(
+                        R.string.restore_dialog_message,
+                        data.presets.size,
+                        totalMessages,
+                    ),
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val toRestore = data.presets
+                        pendingRestoreData = null
+                        scope.launch {
+                            val restoredCount = repository.restorePresets(toRestore)
+                            val appContext = context.applicationContext
+                            appContext.refreshQuickContactSheetWidgets()
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.restore_success, restoredCount),
+                            )
+                        }
+                    },
+                ) {
+                    Text(text = stringResource(R.string.restore_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRestoreData = null }) {
+                    Text(text = stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 }
+

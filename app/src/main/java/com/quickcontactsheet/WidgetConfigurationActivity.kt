@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -217,6 +218,19 @@ private fun ConfigurationRoute(
         }
     }
 
+    val allPresets by repository.allPresetsFlow.collectAsState(initial = emptyList())
+    val matchingPreset = remember(allPresets, currentSettings) {
+        currentSettings?.let { settings ->
+            allPresets.firstOrNull {
+                it.matchesContact(
+                    settings.contactLookupKey,
+                    settings.displayName,
+                    settings.phoneNumbers,
+                )
+            }
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -296,8 +310,27 @@ private fun ConfigurationRoute(
                 ConfigurationHeader(
                     widgetId = widgetId,
                     currentSettings = currentSettings,
+                    savedPresets = matchingPreset?.messages.orEmpty(),
                     onEditMessages = { editorVisible = true },
                     onChangePhoto = { photoOptionsVisible = true },
+                    onRestoreSavedMessages = {
+                        val messagesToRestore = matchingPreset?.messages.orEmpty()
+                        if (messagesToRestore.isNotEmpty()) {
+                            scope.launch {
+                                withContext(NonCancellable + Dispatchers.IO) {
+                                    repository.saveMessages(widgetId, messagesToRestore)
+                                    context.refreshQuickContactSheetWidget(widgetId)
+                                }
+                                snackbarHostState.showSnackbar(
+                                    context.getString(
+                                        R.string.restored_messages_for,
+                                        messagesToRestore.size,
+                                        currentSettings?.displayName ?: "",
+                                    ),
+                                )
+                            }
+                        }
+                    },
                     onSelectNumber = {
                         val configuredContact = contacts.firstOrNull { it.contactId == currentSettings?.contactId }
                             ?: currentSettings?.let { settings ->
@@ -315,6 +348,7 @@ private fun ConfigurationRoute(
                     },
                 )
             }
+
 
             if (!hasContactsPermission) {
                 item {
@@ -388,6 +422,8 @@ private fun ConfigurationRoute(
     if (editorVisible && widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
         MessageEditorSheet(
             initialMessages = currentSettings?.messages.orEmpty(),
+            contactName = currentSettings?.displayName,
+            savedPresets = matchingPreset?.messages.orEmpty(),
             onDismiss = { editorVisible = false },
             onSave = { messages ->
                 editorVisible = false
@@ -498,7 +534,9 @@ private fun InvalidWidgetContent(
 private fun ConfigurationHeader(
     widgetId: Int,
     currentSettings: WidgetSettings?,
+    savedPresets: List<WidgetMessage> = emptyList(),
     onEditMessages: () -> Unit,
+    onRestoreSavedMessages: () -> Unit = {},
     onSelectNumber: () -> Unit = {},
     onChangePhoto: () -> Unit = {},
 ) {
@@ -609,12 +647,40 @@ private fun ConfigurationHeader(
                     }
                 }
                 if (currentSettings.messages.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.no_messages),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
+                    if (savedPresets.isNotEmpty()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        ) {
+                            AssistChip(
+                                onClick = onRestoreSavedMessages,
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Restore,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = stringResource(
+                                            R.string.restored_messages_for,
+                                            savedPresets.size,
+                                            currentSettings.displayName,
+                                        ),
+                                    )
+                                },
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = stringResource(R.string.no_messages),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+ else {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
