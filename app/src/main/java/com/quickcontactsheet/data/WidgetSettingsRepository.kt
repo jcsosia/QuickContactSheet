@@ -64,6 +64,7 @@ class WidgetSettingsRepository private constructor(
     suspend fun saveSelectedContact(
         widgetId: Int,
         contact: ContactSummary,
+        selectedPhoneNumber: String? = null,
     ) = withContext(Dispatchers.IO) {
         val current = getWidgetSettings(widgetId)
         val lookupUri = buildLookupUri(contact)
@@ -80,19 +81,30 @@ class WidgetSettingsRepository private constructor(
             contact.photoUri
         }
 
+        val chosenNumber = selectedPhoneNumber
+            ?: contact.phoneNumbers.firstOrNull()?.number
+
         val updated = WidgetSettings(
             widgetId = widgetId,
             contactId = contact.contactId,
             contactLookupKey = contact.lookupKey,
             contactLookupUri = lookupUri,
             displayName = contact.displayName,
-            phoneNumbers = contact.phoneNumbers.filterNot { it.isBlank() }.distinct(),
+            phoneNumbers = contact.phoneNumbers,
+            selectedPhoneNumber = chosenNumber,
             photoUri = savedPhotoPath,
             messages = current?.messages ?: emptyList(),
         )
         saveWidgetSettings(updated)
     }
 
+    suspend fun saveSelectedPhoneNumber(
+        widgetId: Int,
+        phoneNumber: String,
+    ) = withContext(Dispatchers.IO) {
+        val current = getWidgetSettings(widgetId) ?: return@withContext
+        saveWidgetSettings(current.copy(selectedPhoneNumber = phoneNumber))
+    }
 
     suspend fun saveMessages(
         widgetId: Int,
@@ -105,7 +117,6 @@ class WidgetSettingsRepository private constructor(
             ),
         )
     }
-
 
     suspend fun saveWidgetSettings(settings: WidgetSettings) {
         context.widgetDataStore.edit { preferences ->
@@ -131,9 +142,18 @@ class WidgetSettingsRepository private constructor(
             .put("contactLookupUri", settings.contactLookupUri)
             .put("displayName", settings.displayName)
             .put("photoUri", settings.photoUri)
+            .put("selectedPhoneNumber", settings.selectedPhoneNumber)
             .put(
                 "phoneNumbers",
-                JSONArray(settings.phoneNumbers),
+                JSONArray().apply {
+                    settings.phoneNumbers.forEach { phone ->
+                        put(
+                            JSONObject()
+                                .put("number", phone.number)
+                                .put("label", phone.label),
+                        )
+                    }
+                },
             )
             .put(
                 "messages",
@@ -161,11 +181,21 @@ class WidgetSettingsRepository private constructor(
                 contactLookupKey = json.optString("contactLookupKey").ifBlank { null },
                 contactLookupUri = json.optString("contactLookupUri").ifBlank { null },
                 displayName = json.optString("displayName"),
+                selectedPhoneNumber = json.optString("selectedPhoneNumber").ifBlank { null },
                 phoneNumbers = buildList {
                     for (index in 0 until phoneArray.length()) {
-                        val number = phoneArray.optString(index)
-                        if (number.isNotBlank()) {
-                            add(number)
+                        val optObj = phoneArray.optJSONObject(index)
+                        if (optObj != null) {
+                            val number = optObj.optString("number")
+                            val label = optObj.optString("label")
+                            if (number.isNotBlank()) {
+                                add(ContactPhoneNumber(number = number, label = label))
+                            }
+                        } else {
+                            val number = phoneArray.optString(index)
+                            if (number.isNotBlank()) {
+                                add(ContactPhoneNumber(number = number, label = ""))
+                            }
                         }
                     }
                 },

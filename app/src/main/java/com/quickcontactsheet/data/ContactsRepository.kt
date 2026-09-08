@@ -22,6 +22,7 @@ class ContactsRepository(
                 ContactsContract.CommonDataKinds.Phone.NUMBER,
                 ContactsContract.CommonDataKinds.Phone.PHOTO_URI,
                 ContactsContract.CommonDataKinds.Phone.TYPE,
+                ContactsContract.CommonDataKinds.Phone.LABEL,
             )
 
             val grouped = linkedMapOf<Long, MutableContact>()
@@ -37,6 +38,8 @@ class ContactsRepository(
                 val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY)
                 val numberIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)
                 val photoIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.PHOTO_URI)
+                val typeIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.TYPE)
+                val labelIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.LABEL)
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idIndex)
                     val groupedContact = grouped.getOrPut(id) {
@@ -49,14 +52,22 @@ class ContactsRepository(
                     }
                     val rawNumber = cursor.getString(numberIndex).orEmpty().trim()
                     if (rawNumber.isNotBlank()) {
-                        groupedContact.phoneNumbers += rawNumber
+                        val type = cursor.getInt(typeIndex)
+                        val customLabel = cursor.getString(labelIndex)
+                        val label = ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.resources, type, customLabel).toString()
+                        groupedContact.phoneNumbers += ContactPhoneNumber(
+                            number = rawNumber,
+                            label = label,
+                        )
                     }
                 }
             }
 
             grouped.values
                 .mapNotNull { candidate ->
-                    val numbers = candidate.phoneNumbers.distinct()
+                    val numbers = candidate.phoneNumbers.distinctBy { phone ->
+                        phone.number.filter { it.isDigit() || it == '+' }.ifEmpty { phone.number }
+                    }
                     if (candidate.lookupKey.isBlank() || numbers.isEmpty()) {
                         null
                     } else {
@@ -79,6 +90,6 @@ class ContactsRepository(
         val lookupKey: String,
         val displayName: String,
         val photoUri: String?,
-        val phoneNumbers: MutableList<String> = mutableListOf(),
+        val phoneNumbers: MutableList<ContactPhoneNumber> = mutableListOf(),
     )
 }

@@ -48,4 +48,8 @@
     <string name="add_or_edit_messages">Add or edit messages</string>
     <string name="photo">Photo</string>
     <string name="pinning_unavailable">Unable to open the widget picker right now.</string>
+    <string name="select_default_number">Select default number</string>
+    <string name="select_default_number_desc">Choose which number to use for quick calls and messages with %s.</string>
+    <string name="multiple_numbers_format">%1$d numbers</string>
+    <string name="change_default_number">Change default number</string>
 </resources>

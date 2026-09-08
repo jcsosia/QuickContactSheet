@@ -21,12 +21,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.AssistChip
@@ -38,7 +41,9 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -60,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -147,6 +153,7 @@ private fun ConfigurationRoute(
     var editorVisible by rememberSaveable { mutableStateOf(false) }
     var shouldOpenEditor by rememberSaveable { mutableStateOf(openMessageEditor) }
     var pendingSelectedContact by remember { mutableStateOf<ContactSummary?>(null) }
+    var numberPickerContact by remember { mutableStateOf<ContactSummary?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -266,6 +273,21 @@ private fun ConfigurationRoute(
                     widgetId = widgetId,
                     currentSettings = currentSettings,
                     onEditMessages = { editorVisible = true },
+                    onSelectNumber = {
+                        val configuredContact = contacts.firstOrNull { it.contactId == currentSettings?.contactId }
+                            ?: currentSettings?.let { settings ->
+                                ContactSummary(
+                                    contactId = settings.contactId ?: 0L,
+                                    lookupKey = settings.contactLookupKey.orEmpty(),
+                                    displayName = settings.displayName,
+                                    phoneNumbers = settings.phoneNumbers,
+                                    photoUri = settings.photoUri,
+                                )
+                            }
+                        if (configuredContact != null && configuredContact.phoneNumbers.size > 1) {
+                            numberPickerContact = configuredContact
+                        }
+                    },
                 )
             }
 
@@ -315,14 +337,18 @@ private fun ConfigurationRoute(
                                 contact = contact,
                                 isSelected = (pendingSelectedContact?.contactId ?: currentSettings?.contactId) == contact.contactId,
                                 onClick = {
-                                    pendingSelectedContact = contact
-                                    scope.launch {
-                                        withContext(NonCancellable + Dispatchers.IO) {
-                                            repository.saveSelectedContact(widgetId, contact)
-                                        }
-                                        if (shouldOpenEditor) {
-                                            editorVisible = true
-                                            shouldOpenEditor = false
+                                    if (contact.phoneNumbers.size > 1) {
+                                        numberPickerContact = contact
+                                    } else {
+                                        pendingSelectedContact = contact
+                                        scope.launch {
+                                            withContext(NonCancellable + Dispatchers.IO) {
+                                                repository.saveSelectedContact(widgetId, contact)
+                                            }
+                                            if (shouldOpenEditor) {
+                                                editorVisible = true
+                                                shouldOpenEditor = false
+                                            }
                                         }
                                     }
                                 },
@@ -346,6 +372,37 @@ private fun ConfigurationRoute(
                         context.refreshQuickContactSheetWidget(widgetId)
                     }
                     snackbarHostState.showSnackbar(context.getString(R.string.messages_saved))
+                }
+            },
+        )
+    }
+
+    numberPickerContact?.let { contactToPick ->
+        val currentSelectedNumber = if (contactToPick.contactId == (pendingSelectedContact?.contactId ?: currentSettings?.contactId)) {
+            currentSettings?.primaryPhoneNumber
+        } else {
+            contactToPick.primaryPhoneNumber
+        }
+
+        SelectNumberSheet(
+            contact = contactToPick,
+            currentSelectedNumber = currentSelectedNumber,
+            onDismiss = { numberPickerContact = null },
+            onNumberSelected = { chosenNumber ->
+                numberPickerContact = null
+                pendingSelectedContact = contactToPick
+                scope.launch {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        repository.saveSelectedContact(
+                            widgetId = widgetId,
+                            contact = contactToPick,
+                            selectedPhoneNumber = chosenNumber,
+                        )
+                    }
+                    if (shouldOpenEditor) {
+                        editorVisible = true
+                        shouldOpenEditor = false
+                    }
                 }
             },
         )
@@ -383,6 +440,7 @@ private fun ConfigurationHeader(
     widgetId: Int,
     currentSettings: WidgetSettings?,
     onEditMessages: () -> Unit,
+    onSelectNumber: () -> Unit = {},
 ) {
     Card {
         Column(
@@ -416,11 +474,46 @@ private fun ConfigurationHeader(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        Text(
-                            text = currentSettings.primaryPhoneNumber.orEmpty(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        val primaryNumber = currentSettings.primaryPhoneNumber.orEmpty()
+                        val primaryLabel = currentSettings.primaryPhoneLabel
+                        val displayPhone = if (!primaryLabel.isNullOrBlank()) {
+                            "$primaryNumber ($primaryLabel)"
+                        } else {
+                            primaryNumber
+                        }
+
+                        if (currentSettings.phoneNumbers.size > 1) {
+                            Surface(
+                                onClick = onSelectNumber,
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                ) {
+                                    Text(
+                                        text = displayPhone,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium,
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Rounded.ArrowDropDown,
+                                        contentDescription = stringResource(R.string.change_default_number),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = displayPhone,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     FilledIconButton(onClick = onEditMessages) {
                         Icon(
@@ -564,8 +657,21 @@ private fun ContactRow(
                     text = contact.displayName,
                     style = MaterialTheme.typography.titleMedium,
                 )
+                val primaryPhone = contact.phoneNumbers.firstOrNull()
+                val basePhoneText = if (primaryPhone != null) {
+                    if (primaryPhone.label.isNotBlank()) "${primaryPhone.number} (${primaryPhone.label})" else primaryPhone.number
+                } else ""
+                val subtitleText = if (contact.phoneNumbers.size > 1) {
+                    val countText = stringResource(
+                        R.string.multiple_numbers_format,
+                        contact.phoneNumbers.size,
+                    )
+                    "$basePhoneText • $countText"
+                } else {
+                    basePhoneText
+                }
                 Text(
-                    text = contact.primaryPhoneNumber.orEmpty(),
+                    text = subtitleText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -576,6 +682,96 @@ private fun ContactRow(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectNumberSheet(
+    contact: ContactSummary,
+    currentSelectedNumber: String?,
+    onDismiss: () -> Unit,
+    onNumberSelected: (String) -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.select_default_number),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = stringResource(R.string.select_default_number_desc, contact.displayName),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                items(contact.phoneNumbers, key = { it.number }) { phone ->
+                    val isSelected = phone.number == currentSelectedNumber ||
+                        (currentSelectedNumber == null && phone == contact.phoneNumbers.firstOrNull())
+                    Surface(
+                        onClick = { onNumberSelected(phone.number) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onNumberSelected(phone.number) },
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = phone.number,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                )
+                                if (phone.label.isNotBlank()) {
+                                    Text(
+                                        text = phone.label,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (isSelected) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
