@@ -62,6 +62,9 @@ object QuickContactIntents {
             Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
             Uri.fromParts("package", context.packageName, null),
         )
+
+    fun createWebIntent(url: String): Intent =
+        Intent(Intent.ACTION_VIEW, Uri.parse(url))
 }
 
 fun Context.tryLaunchIntent(intent: Intent): Boolean =

@@ -99,6 +99,31 @@
     <string name="no_presets_found">No saved presets yet.\nWhen you set up quick messages for a contact, they are remembered here for reuse.</string>
     <string name="preset_deleted">Deleted preset for %s</string>
     <string name="all_presets_cleared">Cleared all saved presets</string>
+    <string name="about_title">About</string>
+    <string name="about_app_description">Fast, lightweight contact sheets and home screen widgets for instant calling, messaging, and quick preset messages.</string>
+    <string name="about_version_build">Version %1$s (Build %2$d)</string>
+    <string name="about_privacy_title">Privacy &amp; Security</string>
+    <string name="about_privacy_subtitle">Your data stays strictly on your device</string>
+    <string name="about_privacy_statement">Quick Contact Sheet is designed with privacy as a foundational principle. Contacts permission is used solely to display your contacts and launch phone/messaging actions. No contact details, messages, or telemetry are ever uploaded or transmitted externally.</string>
+    <string name="about_privacy_policy_title">Privacy Policy</string>
+    <string name="about_privacy_policy_subtitle">Read our online privacy policy</string>
+    <string name="about_privacy_policy_url">https://example.com/privacy</string>
+    <string name="about_terms_title">Terms of Service</string>
+    <string name="about_terms_subtitle">Read our terms and conditions</string>
+    <string name="about_terms_url">https://example.com/terms</string>
+    <string name="about_open_source_licenses_title">Open Source Licenses</string>
+    <string name="about_open_source_licenses_subtitle">Third-party software notices and licenses</string>
+    <string name="about_licenses_dialog_title">Open Source Licenses</string>
+    <string name="about_close">Close</string>
+    <string name="about_project_title">Project &amp; Support</string>
+    <string name="about_github_title">GitHub Repository</string>
+    <string name="about_github_subtitle">View source code, releases, and documentation</string>
+    <string name="about_github_url">https://github.com/jcsosia/QuickContactSheet</string>
+    <string name="about_issues_title">Report an Issue / Feedback</string>
+    <string name="about_issues_subtitle">Submit bug reports or suggest new features</string>
+    <string name="about_issues_url">https://github.com/jcsosia/QuickContactSheet/issues</string>
+    <string name="about_back">Navigate back</string>
+    <string name="unable_to_open_link">Unable to open link</string>
 </resources>
 
 

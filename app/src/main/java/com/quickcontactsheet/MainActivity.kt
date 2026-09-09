@@ -46,11 +46,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.quickcontactsheet.data.AppSettings
 import com.quickcontactsheet.data.AppSettingsRepository
 import com.quickcontactsheet.data.BackupData
 import com.quickcontactsheet.data.BackupRepository
 import com.quickcontactsheet.data.WidgetSettingsRepository
+import com.quickcontactsheet.ui.about.AboutScreen
 import com.quickcontactsheet.ui.components.ManagePresetsSheet
 import com.quickcontactsheet.ui.components.SettingsDivider
 import com.quickcontactsheet.ui.components.SettingsGroup
@@ -71,7 +75,23 @@ class MainActivity : ComponentActivity() {
         setContent {
             QuickContactSheetTheme {
                 Surface {
-                    MainRoute(activity = this)
+                    val navController = rememberNavController()
+                    NavHost(
+                        navController = navController,
+                        startDestination = "main",
+                    ) {
+                        composable("main") {
+                            MainRoute(
+                                activity = this@MainActivity,
+                                onNavigateToAbout = { navController.navigate("about") },
+                            )
+                        }
+                        composable("about") {
+                            AboutScreen(
+                                onNavigateUp = { navController.navigateUp() },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -79,7 +99,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun MainRoute(activity: ComponentActivity) {
+private fun MainRoute(
+    activity: ComponentActivity,
+    onNavigateToAbout: () -> Unit,
+) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -225,10 +248,11 @@ private fun MainRoute(activity: ComponentActivity) {
                     },
                 )
                 SettingsDivider()
-                SettingsTile(
+                SettingsNavigationTile(
                     title = context.getString(R.string.settings_about_title),
                     subtitle = context.getString(R.string.settings_version, BuildConfig.VERSION_NAME),
                     icon = Icons.Rounded.Info,
+                    onClick = onNavigateToAbout,
                 )
             }
 
