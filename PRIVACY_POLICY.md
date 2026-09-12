@@ -48,6 +48,8 @@ We rely on the Android operating system's built-in application sandboxing to pro
 
 We may update this Privacy Policy from time to time to reflect changes in our app's features or legal requirements. Any changes will be reflected in this document, and the "Effective Date" at the top will be updated accordingly.
 
-## 7. Contact Us
+## 7. Related Documents & Contact
 
-If you have any questions, concerns, or inquiries regarding this Privacy Policy or our data handling practices, please contact us via our GitHub repository issues page.
+For terms governing the use of this application, please review our [Terms of Use](TERMS_OF_USE.md).
+
+If you have any questions, concerns, or inquiries regarding this Privacy Policy or our data handling practices, please contact us via our [GitHub repository issues page](https://github.com/jcsosia/QuickContactSheet/issues).

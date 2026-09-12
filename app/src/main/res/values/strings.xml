@@ -107,10 +107,10 @@
     <string name="about_privacy_statement">Quick Contact Sheet is designed with privacy as a foundational principle. Contacts permission is used solely to display your contacts and launch phone/messaging actions. No contact details, messages, or telemetry are ever uploaded or transmitted externally.</string>
     <string name="about_privacy_policy_title">Privacy Policy</string>
     <string name="about_privacy_policy_subtitle">Read our online privacy policy</string>
-    <string name="about_privacy_policy_url">https://example.com/privacy</string>
+    <string name="about_privacy_policy_url">https://github.com/jcsosia/QuickContactSheet/blob/main/PRIVACY_POLICY.md</string>
     <string name="about_terms_title">Terms of Service</string>
     <string name="about_terms_subtitle">Read our terms and conditions</string>
-    <string name="about_terms_url">https://example.com/terms</string>
+    <string name="about_terms_url">https://github.com/jcsosia/QuickContactSheet/blob/main/TERMS_OF_USE.md</string>
     <string name="about_open_source_licenses_title">Open Source Licenses</string>
     <string name="about_open_source_licenses_subtitle">Third-party software notices and licenses</string>
     <string name="about_licenses_dialog_title">Open Source Licenses</string>
