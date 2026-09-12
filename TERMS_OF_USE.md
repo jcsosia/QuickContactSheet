@@ -167,5 +167,5 @@ These Terms of Use shall be governed by and construed in accordance with the law
 
 If you have questions, feedback, bug reports, or legal inquiries regarding these Terms of Use or Quick Contact Sheet, please contact us via:
 
-* **GitHub Issues:** [https://github.com/jcsosia/QuickContactSheet/issues](https://github.com/jcsosia/QuickContactSheet/issues)
+* **Email:** [support@sosiacollective.com](mailto:support@sosiacollective.com)
 * **GitHub Repository:** [https://github.com/jcsosia/QuickContactSheet](https://github.com/jcsosia/QuickContactSheet)

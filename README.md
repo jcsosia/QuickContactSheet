@@ -24,6 +24,10 @@ Android app + Glance home-screen widget for one-tap contact actions and reusable
 - The widget uses `ACTION_DIAL` and `ACTION_SENDTO` instead of direct calling/SMS permissions.
 - Contacts permission is only required for browsing contacts and loading contact photos in-app.
 
+## Support & Feedback
+
+Have questions, suggestions, or issues? Reach out directly via email at [support@sosiacollective.com](mailto:support@sosiacollective.com).
+
 ## Legal & Policies
 
 - [Privacy Policy](PRIVACY_POLICY.md)

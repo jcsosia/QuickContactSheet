@@ -1,6 +1,7 @@
 # Privacy Policy for Quick Contact Sheet
 
-**Effective Date:** September 9, 2026
+**Effective Date:** September 9, 2026  
+**Last Updated:** September 12, 2026
 
 This Privacy Policy explains how **Quick Contact Sheet** ("we", "us", or "our") handles your information when you use our Android application. 
 
@@ -23,6 +24,11 @@ Quick Contact Sheet acts as a shortcut to your device's native communication app
 
 ### 1.3 Haptic Feedback
 The app requests the **Vibrate** (`android.permission.VIBRATE`) permission strictly to provide physical haptic feedback when you interact with the widgets and app interfaces.
+
+### 1.4 User-Initiated Support & Feedback
+If you choose to submit feedback or report an issue via the "Send Feedback" option in the app, the app prepares an email draft in your device's default email client addressed to `support@sosiacollective.com`.
+* To assist with troubleshooting and diagnosing issues, non-sensitive device diagnostics (app version, build code/type, device manufacturer/model, and Android OS version) are pre-filled in the email draft body.
+* This diagnostic information is fully transparent and visible in your email composer. You retain complete control to review, edit, or delete this information before sending. No email or diagnostic data is ever transmitted automatically or in the background.
 
 ## 2. Local Storage and Backups
 
@@ -52,4 +58,4 @@ We may update this Privacy Policy from time to time to reflect changes in our ap
 
 For terms governing the use of this application, please review our [Terms of Use](TERMS_OF_USE.md).
 
-If you have any questions, concerns, or inquiries regarding this Privacy Policy or our data handling practices, please contact us via our [GitHub repository issues page](https://github.com/jcsosia/QuickContactSheet/issues).
+If you have any questions, concerns, or inquiries regarding this Privacy Policy, feedback, or our data handling practices, please contact us via email at [support@sosiacollective.com](mailto:support@sosiacollective.com).

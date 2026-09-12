@@ -116,12 +116,12 @@
     <string name="about_licenses_dialog_title">Open Source Licenses</string>
     <string name="about_close">Close</string>
     <string name="about_project_title">Project &amp; Support</string>
+    <string name="about_feedback_title">Send Feedback</string>
+    <string name="about_feedback_subtitle">Email bug reports, questions, or feature ideas</string>
+    <string name="about_feedback_no_email_app">No email app found. You can reach us directly at support@sosiacollective.com</string>
     <string name="about_github_title">GitHub Repository</string>
     <string name="about_github_subtitle">View source code, releases, and documentation</string>
     <string name="about_github_url">https://github.com/jcsosia/QuickContactSheet</string>
-    <string name="about_issues_title">Report an Issue / Feedback</string>
-    <string name="about_issues_subtitle">Submit bug reports or suggest new features</string>
-    <string name="about_issues_url">https://github.com/jcsosia/QuickContactSheet/issues</string>
     <string name="about_back">Navigate back</string>
     <string name="unable_to_open_link">Unable to open link</string>
 </resources>

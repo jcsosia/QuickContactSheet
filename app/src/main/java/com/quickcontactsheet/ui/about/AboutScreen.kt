@@ -14,9 +14,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Mail
 import androidx.compose.material.icons.rounded.PrivacyTip
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material3.AlertDialog
@@ -213,17 +213,27 @@ fun AboutScreen(
                 title = stringResource(R.string.about_project_title),
             ) {
                 SettingsNavigationTile(
+                    title = stringResource(R.string.about_feedback_title),
+                    subtitle = stringResource(R.string.about_feedback_subtitle),
+                    icon = Icons.Rounded.Mail,
+                    onClick = {
+                        val emailIntent = FeedbackEmailHelper.createFeedbackEmailIntent()
+                        val launched = context.tryLaunchIntent(emailIntent)
+                        if (!launched) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.about_feedback_no_email_app),
+                                )
+                            }
+                        }
+                    },
+                )
+                SettingsDivider()
+                SettingsNavigationTile(
                     title = stringResource(R.string.about_github_title),
                     subtitle = stringResource(R.string.about_github_subtitle),
                     icon = Icons.Rounded.Public,
                     onClick = { launchUrl(context.getString(R.string.about_github_url)) },
-                )
-                SettingsDivider()
-                SettingsNavigationTile(
-                    title = stringResource(R.string.about_issues_title),
-                    subtitle = stringResource(R.string.about_issues_subtitle),
-                    icon = Icons.Rounded.BugReport,
-                    onClick = { launchUrl(context.getString(R.string.about_issues_url)) },
                 )
             }
         }
